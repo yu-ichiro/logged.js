@@ -1,0 +1,16 @@
+{
+  "name": "logging",
+  "version": "0.1.0",
+  "description": "logging library without any dependencies inspired from python builtin logging package",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc-both"
+  },
+  "repository": "https://github.com/yu-ichiro/logging-ts",
+  "author": "Yuichiro Smith <contact@yu-smith.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^4.1.4",
+    "tsc-both": "^0.2.2"
+  }
+}
