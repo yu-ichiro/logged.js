@@ -1,6 +1,6 @@
 {
   "name": "logged.js",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "logging library without any dependencies inspired from python builtin logging package",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
