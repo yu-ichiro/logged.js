@@ -124,21 +124,21 @@ class RootLogger extends Logger {
   }
 }
 
-class Loglib {
+class Logging {
   private static _root: Logger = RootLogger.instance
   static get root() {
-    return Loglib._root
+    return Logging._root
   }
 
   static addLevel(name: string, level: number) {
-    Object.defineProperties(Loglib, {
+    Object.defineProperties(Logging, {
       [name.toUpperCase()]: {
         configurable: false,
         value: level
       },
       [name.toLowerCase()]: {
         configurable: false,
-        value: (log: Log) => Loglib.log(log, level)
+        value: (log: Log) => Logging.log(log, level)
       },
     })
     ;(Logger.prototype as any)[name.toLowerCase()] = function (this: Logger, log: Log) {
@@ -147,17 +147,17 @@ class Loglib {
   }
 
   static getLogger(name: string) {
-    return name.split(LOGGER_SEPARATOR).reduce((logger, name) => logger.getChild(name), Loglib.root)
+    return name.split(LOGGER_SEPARATOR).reduce((logger, name) => logger.getChild(name), Logging.root)
   }
 
   static log(log: Log, level?: number) {
-    Loglib.root.log(log, level)
+    Logging.root.log(log, level)
   }
 }
 
 Object.keys(DEFAULT_LEVELS).forEach(prop => {
-  Loglib.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS])
+  Logging.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS])
 })
 
-const __module: typeof Loglib & Loggable & Levels = Loglib as any
+const __module: typeof Logging & Loggable & Levels = Logging as any
 export default __module
