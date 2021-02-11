@@ -33,7 +33,7 @@ export interface Loggable {
 }
 
 export interface LogRecord {
-  level: string
+  level: number
   name: string
   createdAt: Date
   message: string
@@ -71,7 +71,7 @@ export const defaultBuilder: Builder = {
     if (!partialRecord.message) throw Error("message not specified")
 
     return {
-      level: "",
+      level: this.defaultLevel,
       name: this.name,
       createdAt: new Date(),
       ...partialRecord,
@@ -79,8 +79,116 @@ export const defaultBuilder: Builder = {
   }
 }
 
+export class DefaultFormatter implements Formatter {
+  fmt: string;
+  dateFormat: string;
+  constructor(fmt: string = "[{createdAt}][{name}] {level}: {message}", dateFormat: string = "%i") {
+    this.fmt = fmt
+    this.dateFormat = dateFormat
+  }
+
+  format(log: LogRecord): string {
+    const pattern = (key: string) => new RegExp(`{${key}(:(?<options>.+))?}`)
+    const contentParser = <K extends keyof LogRecord>(key: K, value: LogRecord[K]): string => {
+      if (value instanceof Date) return this.formatDate(value)
+      if (key === "level") return Logging.getLevel(value as number)
+      return String(value)
+    }
+    const optionsParser = (options: string | undefined) => {
+      if (!options) return (content: string) => String(content)
+      let parsed = { padLetter: " ", digits: 0, decimal: 0 }
+      let decimal = false
+      for (let idx = 0; idx < options.length; idx++) {
+        if (idx === 0 && options[idx] === "0") {
+          parsed.padLetter = "0"
+          continue
+        }
+        if (options[idx].match(/[0-9]/)) {
+          if (decimal) {
+            parsed.decimal *= 10
+            parsed.decimal += parseInt(options[idx])
+          } else {
+            parsed.digits *= 10
+            parsed.digits += parseInt(options[idx])
+          }
+          continue
+        }
+        if (options[idx] === ".") {
+          decimal = true
+        }
+      }
+      return (content: string) => {
+        const padString = (letter: string, length: number) =>
+          String(new Array(length).reduce((res) => res + length, ""))
+        let split = content.split(".")
+        if (split.length > 2) split = [split.slice(0, -1).join("."), split.slice(-1)[0]]
+        const digits = Math.max(split[0].length, parsed.digits)
+        split[0] = (padString(parsed.padLetter, digits) + split[0]).slice(-digits)
+        if (parsed.decimal > 0) {
+          if (split.length == 1) split.push("")
+          const decimal = Math.max(split[1].length, parsed.decimal)
+          split[1] = (split[1] + padString(parsed.padLetter, decimal)).slice(decimal)
+        }
+        return split.join(".")
+      }
+    }
+    return Object.keys(log).reduce(function replacer(fmt, key: keyof LogRecord): string {
+      const matches = fmt.match(pattern(key))
+      if (!matches) return fmt
+      const options = (matches as any)?.groups?.options as string | undefined
+      return replacer(fmt.replace(pattern(key), optionsParser(options)(contentParser(key, log[key]))), key)
+    } as (fmt: string, key: string) => string, this.fmt);
+  }
+
+  formatDate(date: Date): string {
+    const replacer = {
+      Y: (d: Date) => String("0000" + d.getUTCFullYear()).slice(-4),
+      m: (d: Date) => String("00" + (d.getUTCMonth() + 1)).slice(-2),
+      d: (d: Date) => String("00" +d.getUTCDate()).slice(-2),
+      H: (d: Date) => String("00" +d.getUTCHours()).slice(-2),
+      M: (d: Date) => String("00" +d.getUTCMinutes()).slice(-2),
+      S: (d: Date) => String("00" +d.getUTCSeconds()).slice(-2),
+      i: (d: Date) => d.toISOString(),
+    }
+    let result = ""
+    for (let idx = 0; idx < this.dateFormat.length; idx++) {
+      if (this.dateFormat[idx] === "%") {
+        idx += 1
+        if (this.dateFormat[idx] === "%") result += "%"
+        else if (replacer[this.dateFormat[idx] as keyof typeof replacer]) result += replacer[this.dateFormat[idx] as keyof typeof replacer](date)
+      } else {
+        result += this.dateFormat[idx]
+      }
+    }
+    return result
+  }
+}
+
+export class ConsoleHandler implements Handler {
+  level: number
+  formatter: Formatter
+
+  constructor(level: number = DEFAULT_LEVELS.INFO, fmt?: string, dateFormat?: string) {
+    this.level = level
+    this.formatter = new DefaultFormatter(fmt, dateFormat)
+  }
+
+  handle(log: LogRecord): void {
+    const str = this.formatter.format(log)
+    if (log.level < DEFAULT_LEVELS.DEBUG)
+      return console.trace(str)
+    if (log.level < DEFAULT_LEVELS.INFO)
+      return console.debug(str)
+    if (log.level < DEFAULT_LEVELS.WARN)
+      return console.info(str)
+    if (log.level < DEFAULT_LEVELS.ERROR)
+      return console.warn(str)
+    return console.error(str)
+  }
+}
+
 class Logger implements Loggable {
-  private _name: string
+  private readonly _name: string
   parent?: Logger
   propagate: boolean
   defaultLevel: number
@@ -98,6 +206,7 @@ class Logger implements Loggable {
   }
 
   get name(): string {
+    if (this.parent && this.parent.name !== "root") return `${this.parent.name}${LOGGER_SEPARATOR}${this._name}`
     return this._name
   }
 
@@ -107,40 +216,42 @@ class Logger implements Loggable {
   }
 
   getChild(name: string) {
-    const child = new Logger([this, name, name].join(LOGGER_SEPARATOR))
-    child.parent = this
-    this.children[name] = child
-    return child
+    if (!this.children[name]) {
+      const child = new Logger(name)
+      child.parent = this
+      this.children[name] = child
+    }
+    return this.children[name]
   }
 
-  log(log: LogRecord, level?: number): void {
-    const _log = {...log, level: Logging.getLevel(level ?? this.defaultLevel)}
-    this.handlers.forEach(handler => handler.level <= (level ?? this.defaultLevel) && handler.handle(_log))
-    if (this.propagate) this.parent?.log(_log, level)
+  log(log: Partial<LogRecord>): void {
+    const _log = this.builder.build.call(this, log)
+    this.handlers.forEach(handler => handler.level <= _log.level && (async () => handler.handle(_log))())
+    if (this.propagate) this.parent?.log(_log)
   }
 
   trace(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.TRACE)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.TRACE})
   }
 
   debug(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.DEBUG)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.DEBUG})
   }
 
   info(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.INFO)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.INFO})
   }
 
   warn(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.WARN)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.WARN})
   }
 
   error(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.ERROR)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.ERROR})
   }
 
   fatal(...args: unknown[]): void {
-    this.log(this.builder.build(...args), DEFAULT_LEVELS.FATAL)
+    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.FATAL})
   }
 
 }
@@ -166,8 +277,8 @@ class RootLogger extends Logger {
     return this.children[name]
   }
 
-  log(log: LogRecord, level?: number) {
-    super.log({...log, name: "root"}, level);
+  get name(): string {
+    return "root"
   }
 }
 
@@ -198,7 +309,7 @@ class Logging {
       },
     })
     ;(Logger.prototype as any)[name.toLowerCase()] = function (this: Logger, ...args: unknown[]) {
-      return this.log(this.builder.build(...args), level)
+      return this.log({...this.builder.build.call(this, ...args), level: level})
     }
   }
 
@@ -212,13 +323,13 @@ class Logging {
   static getLevel(value: keyof Loggable | number) {
     if (typeof value === "string") return (Logging as any)[value]
     return Object.keys(Logging.levels).reduce(
-      (_value, key) => String(Logging.levels[key as keyof Levels]) === _value ? key : _value,
-      String(value)
+      (_value, key) => Logging.levels[key as keyof Levels] === value ? key : _value,
+      `Level(${value})`
     )
   }
 
-  static log(log: LogRecord, level?: number) {
-    Logging.root.log(log, level)
+  static log(log: Partial<LogRecord>) {
+    Logging.root.log(log)
   }
 }
 
