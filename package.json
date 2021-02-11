@@ -11,7 +11,7 @@
     "build": "tsc-both",
     "prepublishOnly": "yarn build"
   },
-  "repository": "https://github.com/yu-ichiro/logging-ts",
+  "repository": "https://github.com/yu-ichiro/logged.js",
   "author": "Yuichiro Smith <contact@yu-smith.com>",
   "license": "MIT",
   "devDependencies": {
