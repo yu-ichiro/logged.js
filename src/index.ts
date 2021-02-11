@@ -184,6 +184,7 @@ class Logging {
   }
 
   static addLevel(name: string, level: number) {
+    Logging._levels[name as keyof Levels] = level
     Object.defineProperties(Logging, {
       [name.toUpperCase()]: {
         configurable: false,
