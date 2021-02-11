@@ -1,5 +1,6 @@
 const LOGGER_SEPARATOR = "."
-interface Levels {
+
+export interface Levels {
   TRACE: number,
   DEBUG: number,
   INFO: number,
@@ -123,21 +124,21 @@ class RootLogger extends Logger {
   }
 }
 
-class Logging {
+class Loglib {
   private static _root: Logger = RootLogger.instance
   static get root() {
-    return Logging._root
+    return Loglib._root
   }
 
   static addLevel(name: string, level: number) {
-    Object.defineProperties(Logging, {
+    Object.defineProperties(Loglib, {
       [name.toUpperCase()]: {
         configurable: false,
         value: level
       },
       [name.toLowerCase()]: {
         configurable: false,
-        value: (log: Log) => Logging.log(log, level)
+        value: (log: Log) => Loglib.log(log, level)
       },
     })
     ;(Logger.prototype as any)[name.toLowerCase()] = function (this: Logger, log: Log) {
@@ -146,17 +147,17 @@ class Logging {
   }
 
   static getLogger(name: string) {
-    return name.split(LOGGER_SEPARATOR).reduce((logger, name) => logger.getChild(name), Logging.root)
+    return name.split(LOGGER_SEPARATOR).reduce((logger, name) => logger.getChild(name), Loglib.root)
   }
 
   static log(log: Log, level?: number) {
-    Logging.root.log(log, level)
+    Loglib.root.log(log, level)
   }
 }
 
 Object.keys(DEFAULT_LEVELS).forEach(prop => {
-  Logging.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS])
+  Loglib.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS])
 })
 
-const __module: typeof Logging & Loggable & Levels = Logging as any
+const __module: typeof Loglib & Loggable & Levels = Loglib as any
 export default __module

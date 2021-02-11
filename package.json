@@ -1,5 +1,5 @@
 {
-  "name": "logging",
+  "name": "loglib",
   "version": "0.1.0",
   "description": "logging library without any dependencies inspired from python builtin logging package",
   "main": "dist/index.js",
