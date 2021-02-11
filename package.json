@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "description": "logging library without any dependencies inspired from python builtin logging package",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "build": "tsc-both"
+    "build": "tsc-both",
+    "prepublishOnly": "yarn build"
   },
   "repository": "https://github.com/yu-ichiro/logging-ts",
   "author": "Yuichiro Smith <contact@yu-smith.com>",
