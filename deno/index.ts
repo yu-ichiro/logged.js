@@ -1,8 +1,9 @@
-import { Levels, Loggable, LogRecord } from "./types";
-import { Logger, LoggerType } from "./logger";
-import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants";
+// @ts-nocheck
+import { Levels, Loggable, LogRecord } from "./types.ts";
+import { Logger, LoggerType } from "./logger.ts";
+import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants.ts";
 
-export * from "./types";
+export * from "./types.ts";
 
 class RootLogger extends Logger {
   private static _instance?: RootLogger;

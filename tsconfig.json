@@ -13,6 +13,7 @@
   },
   "exclude": [
     "mod.ts",
-    "dist/**"
+    "dist/**",
+    "deno/**"
   ]
 }

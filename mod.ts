@@ -1,5 +1,5 @@
 // @ts-ignore
-import logging from "./src/index.ts"
+import logging from "./deno/index.ts";
 // @ts-ignore
-export * from "./src/index.ts"
-export default logging
+export * from "./deno/index.ts";
+export default logging;
