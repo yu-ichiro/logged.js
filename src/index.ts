@@ -16,19 +16,14 @@ const DEFAULT_LEVELS: Levels = {
   WARN: 30,
   ERROR: 40,
   FATAL: 50
-}
+} as Levels
 
 export interface Loggable {
   trace(...args: unknown[]): void
-
   debug(...args: unknown[]): void
-
   info(...args: unknown[]): void
-
   warn(...args: unknown[]): void
-
   error(...args: unknown[]): void
-
   fatal(...args: unknown[]): void
 }
 
@@ -187,12 +182,13 @@ export class ConsoleHandler implements Handler {
   }
 }
 
-class Logger implements Loggable {
+type LoggerType = Logger & Loggable
+class Logger {
   private readonly _name: string
   parent?: Logger
   propagate: boolean
   defaultLevel: number
-  children: Record<string, Logger>
+  children: Record<string, LoggerType>
   builder: Builder
   handlers: Handler[]
 
@@ -215,11 +211,11 @@ class Logger implements Loggable {
     return this
   }
 
-  getChild(name: string) {
+  getChild(name: string): LoggerType {
     if (!this.children[name]) {
       const child = new Logger(name)
       child.parent = this
-      this.children[name] = child
+      this.children[name] = child as LoggerType
     }
     return this.children[name]
   }
@@ -229,31 +225,6 @@ class Logger implements Loggable {
     this.handlers.forEach(handler => handler.level <= _log.level && (async () => handler.handle(_log))())
     if (this.propagate) this.parent?.log(_log)
   }
-
-  trace(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.TRACE})
-  }
-
-  debug(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.DEBUG})
-  }
-
-  info(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.INFO})
-  }
-
-  warn(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.WARN})
-  }
-
-  error(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.ERROR})
-  }
-
-  fatal(...args: unknown[]): void {
-    this.log({...this.builder.build.call(this, ...args), level: DEFAULT_LEVELS.FATAL})
-  }
-
 }
 
 class RootLogger extends Logger {
@@ -263,18 +234,9 @@ class RootLogger extends Logger {
     super("__ROOT__")
   }
 
-  static get instance() {
+  static get instance(): LoggerType {
     if (!RootLogger._instance) RootLogger._instance = new RootLogger()
-    return RootLogger._instance
-  }
-
-  getChild(name: string) {
-    if (this.children[name] == null) {
-      const child = new Logger(name)
-      child.parent = this
-      this.children[name] = child
-    }
-    return this.children[name]
+    return RootLogger._instance as LoggerType
   }
 
   get name(): string {
@@ -283,7 +245,7 @@ class RootLogger extends Logger {
 }
 
 class Logging {
-  private static _root: Logger = RootLogger.instance
+  private static _root: LoggerType = RootLogger.instance
   private static _levels: Levels = {...DEFAULT_LEVELS}
 
   static get root() {
@@ -305,7 +267,7 @@ class Logging {
       },
       [name.toLowerCase()]: {
         configurable: false,
-        value: (...args: unknown[]) => Logging.root[name.toLowerCase() as keyof Loggable](...args)
+        value: (...args: unknown[]) => (Logging.root as Loggable)[name.toLowerCase() as keyof Loggable](...args)
       },
     })
     ;(Logger.prototype as any)[name.toLowerCase()] = function (this: Logger, ...args: unknown[]) {
@@ -313,7 +275,7 @@ class Logging {
     }
   }
 
-  static getLogger(name: string) {
+  static getLogger(name: string): LoggerType {
     if (name === "root") return Logging.root
     return name.split(LOGGER_SEPARATOR).reduce((logger, name) => logger.getChild(name), Logging.root)
   }
