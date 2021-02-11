@@ -1,6 +1,6 @@
 {
   "name": "logged.js",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "logging library without any dependencies inspired from python builtin logging package",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -15,7 +15,7 @@
   "author": "Yuichiro Smith <contact@yu-smith.com>",
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^4.1.4",
-    "tsc-both": "^0.2.2"
+    "tsc-both": "^0.2.2",
+    "typescript": "^4.1.4"
   }
 }
