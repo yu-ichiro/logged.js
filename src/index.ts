@@ -3,6 +3,8 @@ import { Logger, LoggerType } from "./logger";
 import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants";
 
 export * from "./types";
+export * from "./handlers";
+export * from "./formatter";
 
 class RootLogger extends Logger {
   private static _instance?: RootLogger;

@@ -4,6 +4,8 @@ import { Logger, LoggerType } from "./logger.ts";
 import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants.ts";
 
 export * from "./types.ts";
+export * from "./handlers.ts";
+export * from "./formatter.ts";
 
 class RootLogger extends Logger {
   private static _instance?: RootLogger;
