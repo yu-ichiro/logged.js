@@ -87,4 +87,5 @@ Object.keys(DEFAULT_LEVELS).forEach((prop) => {
   Logging.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS]);
 });
 
-export default Logging as LoggingModule;
+const logging = Logging as LoggingModule
+export default logging;
