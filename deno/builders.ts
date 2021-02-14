@@ -2,7 +2,7 @@
 import { Builder, LogRecord } from "./types.ts";
 import { BuilderRegistry } from "./registry.ts";
 
-class SimpleBuilder implements Builder {
+export class SimpleBuilder implements Builder {
   build(...args: unknown[]): LogRecord {
     if (args.length < 1) throw Error("at least one argument is required");
     const firstArg = args.shift();
