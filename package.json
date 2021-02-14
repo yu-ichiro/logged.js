@@ -1,8 +1,12 @@
 {
   "name": "logged.js",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "logging library without any dependencies inspired from python builtin logging package",
-  "keywords": ["logging", "logger", "minimal"],
+  "keywords": [
+    "logging",
+    "logger",
+    "minimal"
+  ],
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "module": "dist/index.mjs",
