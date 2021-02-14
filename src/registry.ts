@@ -96,6 +96,7 @@ export class BuilderRegistry {
   }
 }
 
-
-export let loggedjsLogger: LoggerType
-export const setLoggedjsLogger = (logger: LoggerType) => { loggedjsLogger = logger }
+export let loggedjsLogger: LoggerType;
+export const setLoggedjsLogger = (logger: LoggerType) => {
+  loggedjsLogger = logger;
+};

@@ -1,7 +1,12 @@
 // @ts-nocheck
 import { Builder, Handler, Loggable, LogRecord } from "./types.ts";
 import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants.ts";
-import { BuilderRegistry, HandlerRegistry, loggedjsLogger, setLoggedjsLogger } from "./registry.ts";
+import {
+  BuilderRegistry,
+  HandlerRegistry,
+  loggedjsLogger,
+  setLoggedjsLogger,
+} from "./registry.ts";
 
 export type LoggerType = Logger & Loggable;
 export class Logger {
@@ -71,7 +76,7 @@ export class RootLogger extends Logger {
 
   private constructor() {
     super("__ROOT__");
-    setLoggedjsLogger(this.getChild("loggedjs"))
+    setLoggedjsLogger(this.getChild("loggedjs"));
   }
 
   static get instance(): LoggerType {
@@ -82,7 +87,7 @@ export class RootLogger extends Logger {
   log(log: Partial<LogRecord>) {
     if (this.handlers.length === 0) {
       this.addHandler(HandlerRegistry.defaultHandler);
-      loggedjsLogger.warn("implicitly added default handler to root")
+      loggedjsLogger.warn("implicitly added default handler to root");
     }
     super.log(log);
   }
