@@ -1,57 +1,54 @@
 import { Levels, Loggable, LogRecord } from "./types";
-import { Logger, LoggerType } from "./logger";
 import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants";
+import {
+  BuilderRegistry,
+  FormatterRegistry,
+  HandlerRegistry,
+  LevelRegistry,
+} from "./registry";
+import { Logger, LoggerType, RootLogger } from "./logger";
 
 export * from "./types";
-export * from "./handlers";
+export * from "./builders";
 export * from "./formatter";
+export * from "./handlers";
 
-class RootLogger extends Logger {
-  private static _instance?: RootLogger;
-
-  private constructor() {
-    super("__ROOT__");
-  }
-
-  static get instance(): LoggerType {
-    if (!RootLogger._instance) RootLogger._instance = new RootLogger();
-    return RootLogger._instance as LoggerType;
-  }
-
-  get name(): string {
-    return "root";
-  }
-}
+export {
+  BuilderRegistry,
+  FormatterRegistry,
+  HandlerRegistry,
+  LevelRegistry,
+  Logger,
+  LoggerType,
+};
 
 type LoggingModule = typeof Logging & Loggable & Levels;
 
 class Logging {
-  private static _root: LoggerType = RootLogger.instance;
-  private static _levels: Levels = { ...DEFAULT_LEVELS };
-
   static get root() {
-    return Logging._root;
+    return RootLogger.instance;
   }
 
-  static get levels() {
-    return { ...Logging._levels };
+  static get levels(): Levels {
+    return LevelRegistry.levels;
   }
 
   static addLevel(name: string, level: number) {
-    Logging._levels[name as keyof Levels] = level;
+    LevelRegistry.addLevel(name, level);
     Object.defineProperties(Logging, {
       [name.toUpperCase()]: {
         configurable: false,
         get() {
-          return Logging.levels[name.toUpperCase() as keyof Levels];
+          return LevelRegistry.levels[name.toUpperCase() as keyof Levels];
         },
       },
       [name.toLowerCase()]: {
         configurable: false,
-        value: (...args: unknown[]) =>
-          (Logging.root as Loggable)[name.toLowerCase() as keyof Loggable](
-            ...args,
-          ),
+        get: () =>
+          (...args: unknown[]) =>
+            (Logging.root as Loggable)[name.toLowerCase() as keyof Loggable](
+              ...args,
+            ),
       },
     });
     (Logger.prototype as any)[name.toLowerCase()] = function (
@@ -59,7 +56,7 @@ class Logging {
       ...args: unknown[]
     ) {
       return this.log({
-        ...this.builder.build.call(this, ...args),
+        ...this.builder.build(...args),
         level: level,
       });
     };
@@ -74,14 +71,11 @@ class Logging {
   }
 
   static getLevel(value: number): string;
-  static getLevel(value: keyof Loggable): number;
-  static getLevel(value: keyof Loggable | number) {
-    if (typeof value === "string") return (Logging as any)[value];
-    return Object.keys(Logging.levels).reduce(
-      (_value, key) =>
-        Logging.levels[key as keyof Levels] === value ? key : _value,
-      `Level(${value})`,
-    );
+  static getLevel(value: keyof Loggable | keyof Levels): number;
+  static getLevel(
+    value: number | keyof Loggable | keyof Levels,
+  ): string | number {
+    return LevelRegistry.getLevel(value as any);
   }
 
   static log(log: Partial<LogRecord>) {
@@ -93,5 +87,4 @@ Object.keys(DEFAULT_LEVELS).forEach((prop) => {
   Logging.addLevel(prop, DEFAULT_LEVELS[prop as keyof typeof DEFAULT_LEVELS]);
 });
 
-const __module = Logging as LoggingModule;
-export default __module;
+export default Logging as LoggingModule;

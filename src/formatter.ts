@@ -1,54 +1,79 @@
 import { Formatter, LogRecord } from "./types";
-import logging from "./index";
+import { FormatterRegistry, LevelRegistry } from "./registry";
 
-export class DefaultFormatter implements Formatter {
+const triSplit = (pattern: RegExp) => {
+  const _pattern = new RegExp(pattern.source, "g");
+  return (str: string): [RegExpMatchArray, string, string, string] | null => {
+    _pattern.lastIndex = 0;
+    const match = _pattern.exec(str);
+    if (!match) return null;
+    return [
+      match,
+      str.slice(0, match.index),
+      str.slice(match.index, _pattern.lastIndex),
+      str.slice(_pattern.lastIndex),
+    ];
+  };
+};
+
+const isEmptyString = (str: string): boolean => {
+  if (str === "undefined") return true;
+  if (str === "[]") return true;
+  if (str === "{}") return true;
+  return str === "";
+};
+
+export class SimpleFormatter implements Formatter {
+  static defaultFormat = "[{createdAt}][{name}] {level}: {message} {args:?}";
   fmt: string;
   dateFormat: string;
+  pattern: RegExp;
+  splitter: ReturnType<typeof triSplit>;
 
   constructor(
-    fmt: string = "[{createdAt}][{name}] {level}: {message}",
+    fmt?: string,
     dateFormat: string = "%i",
   ) {
-    this.fmt = fmt;
+    this.pattern = /{(?<path>[a-zA-Z][^:}]*)(:(?<options>[^}]+))?}/;
+    this.splitter = triSplit(this.pattern);
+    this.fmt = fmt ?? SimpleFormatter.defaultFormat;
     this.dateFormat = dateFormat;
   }
 
   format(log: LogRecord): string {
-    const pattern = (key: string) => new RegExp(`{${key}(:(?<options>.+))?}`);
-    const contentParser = <K extends keyof LogRecord>(
-      key: K,
-      value: LogRecord[K],
+    const contentParser = (
+      key: string,
+      path: string,
+      value: any,
     ): string => {
       if (value instanceof Date) return this.formatDate(value);
-      if (key === "level") return logging.getLevel(value as number);
-      return String(value);
+      if (path === "level") return LevelRegistry.getLevel(value as number);
+      if (typeof value === "string") return value;
+      return JSON.stringify(value) ?? String(value);
     };
     const optionsParser = (options: string | undefined) => {
-      if (!options) return (content: string) => String(content);
-      let parsed = { padLetter: " ", digits: 0, decimal: 0 };
-      let decimal = false;
-      for (let idx = 0; idx < options.length; idx++) {
-        if (idx === 0 && options[idx] === "0") {
-          parsed.padLetter = "0";
-          continue;
-        }
-        if (options[idx].match(/[0-9]/)) {
-          if (decimal) {
-            parsed.decimal *= 10;
-            parsed.decimal += parseInt(options[idx]);
-          } else {
-            parsed.digits *= 10;
-            parsed.digits += parseInt(options[idx]);
-          }
-          continue;
-        }
-        if (options[idx] === ".") {
-          decimal = true;
-        }
-      }
+      const nop = (content: string) => String(content);
+      if (!options) return nop;
+      const pattern =
+        /(?<skipEmpty>\?)?(?<padLetter>0)?(?<digits>[1-9]\d*)?(\.(?<decimals>[1-9]\d*))?/;
+      const result = options.match(pattern);
+      if (!result) return nop;
+      const groups = (result as any).groups as {
+        skipEmpty?: string;
+        padLetter?: string;
+        digits?: string;
+        decimal?: string;
+      };
+      let parsed = {
+        padLetter: groups.padLetter ?? " ",
+        digits: parseInt(groups.digits ?? "0") || 0,
+        decimal: parseInt(groups.decimal ?? "0") || 0,
+        skipEmpty: groups.skipEmpty === "?",
+      };
       return (content: string) => {
+        if (parsed.skipEmpty && isEmptyString(content)) return "";
         const padString = (letter: string, length: number) =>
-          String(new Array(length).reduce((res) => res + length, ""));
+          String(new Array(length).fill("").reduce((res) => res + letter, ""));
         let split = content.split(".");
         if (split.length > 2) {
           split = [split.slice(0, -1).join("."), split.slice(-1)[0]];
@@ -67,21 +92,27 @@ export class DefaultFormatter implements Formatter {
         return split.join(".");
       };
     };
-    return Object.keys(log).reduce(
-      function replacer(fmt, key: keyof LogRecord): string {
-        const matches = fmt.match(pattern(key));
-        if (!matches) return fmt;
-        const options = (matches as any)?.groups?.options as string | undefined;
-        return replacer(
-          fmt.replace(
-            pattern(key),
-            optionsParser(options)(contentParser(key, log[key])),
-          ),
-          key,
-        );
-      } as (fmt: string, key: string) => string,
-      this.fmt,
-    );
+    return (function replacer(this: SimpleFormatter, fmt: string): string {
+      const matches = this.splitter(fmt);
+      if (!matches) return fmt;
+      const [result, before, exact, after] = matches;
+      const groups = (result as any).groups as {
+        path: string;
+        options?: string;
+      };
+      const { path, options } = groups;
+      let key = "";
+      const obj = path.split(".").reduce((_obj, _key) => {
+        key = _key;
+        return _obj && _obj[key];
+      }, log as any);
+      return `${before}${
+        exact.replace(
+          this.pattern,
+          optionsParser(options)(contentParser(key, path, obj)),
+        )
+      }${replacer.call(this, after)}`;
+    }).call(this, this.fmt);
   }
 
   formatDate(date: Date): string {
@@ -113,3 +144,6 @@ export class DefaultFormatter implements Formatter {
     return result;
   }
 }
+
+FormatterRegistry.addFormatter("SimpleFormatter", SimpleFormatter);
+FormatterRegistry.defaultFormatter = new SimpleFormatter();

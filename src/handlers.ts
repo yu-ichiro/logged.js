@@ -1,6 +1,7 @@
 import { Formatter, Handler, LogRecord } from "./types";
-import { DefaultFormatter } from "./formatter";
+import { SimpleFormatter } from "./formatter";
 import { DEFAULT_LEVELS } from "./constants";
+import { FormatterRegistry, HandlerRegistry } from "./registry";
 
 export class ConsoleHandler implements Handler {
   level: number;
@@ -10,9 +11,12 @@ export class ConsoleHandler implements Handler {
     level: number = DEFAULT_LEVELS.INFO,
     fmt?: string,
     dateFormat?: string,
+    formatter?: Formatter,
   ) {
     this.level = level;
-    this.formatter = new DefaultFormatter(fmt, dateFormat);
+    this.formatter = formatter ?? (fmt || dateFormat)
+      ? new SimpleFormatter(fmt, dateFormat)
+      : FormatterRegistry.defaultFormatter;
   }
 
   handle(log: LogRecord): void {
@@ -32,3 +36,6 @@ export class ConsoleHandler implements Handler {
     return console.error(str);
   }
 }
+
+HandlerRegistry.addHandler("ConsoleHandler", ConsoleHandler);
+HandlerRegistry.defaultHandler = new ConsoleHandler();

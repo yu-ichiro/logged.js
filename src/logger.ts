@@ -1,6 +1,6 @@
 import { Builder, Handler, Loggable, LogRecord } from "./types";
 import { DEFAULT_LEVELS, LOGGER_SEPARATOR } from "./constants";
-import { loggerBuilder } from "./builders";
+import { BuilderRegistry, HandlerRegistry, loggedjsLogger, setLoggedjsLogger } from "./registry";
 
 export type LoggerType = Logger & Loggable;
 export class Logger {
@@ -15,12 +15,12 @@ export class Logger {
   constructor(
     name: string,
     defaultLevel: number = DEFAULT_LEVELS.INFO,
-    builder: Builder = loggerBuilder,
+    builder?: Builder,
     handlers?: Handler[],
   ) {
     this._name = name;
     this.defaultLevel = defaultLevel;
-    this.builder = builder;
+    this.builder = builder ?? BuilderRegistry.defaultBuilder;
     this.handlers = handlers ?? [];
     this.propagate = true;
     this.children = {};
@@ -42,7 +42,7 @@ export class Logger {
 
   getChild(name: string): LoggerType {
     if (!this.children[name]) {
-      const child = new Logger(name);
+      const child = new Logger(name, this.defaultLevel, this.builder);
       child.parent = this;
       this.children[name] = child as LoggerType;
     }
@@ -50,10 +50,43 @@ export class Logger {
   }
 
   log(log: Partial<LogRecord>): void {
-    const _log = this.builder.build.call(this, log);
+    if (this.handlers.length === 0 && !(this.propagate && this.parent)) {
+      return;
+    }
+    const _log = {
+      level: this.defaultLevel,
+      name: this.name,
+      ...this.builder.build(log),
+    } as LogRecord;
     this.handlers.forEach((handler) =>
       handler.level <= _log.level && (async () => handler.handle(_log))()
     );
     if (this.propagate) this.parent?.log(_log);
+  }
+}
+
+export class RootLogger extends Logger {
+  private static _instance?: RootLogger;
+
+  private constructor() {
+    super("__ROOT__");
+    setLoggedjsLogger(this.getChild("loggedjs"))
+  }
+
+  static get instance(): LoggerType {
+    if (!RootLogger._instance) RootLogger._instance = new RootLogger();
+    return RootLogger._instance as LoggerType;
+  }
+
+  log(log: Partial<LogRecord>) {
+    if (this.handlers.length === 0) {
+      this.addHandler(HandlerRegistry.defaultHandler);
+      loggedjsLogger.warn("implicitly added default handler to root")
+    }
+    super.log(log);
+  }
+
+  get name(): string {
+    return "root";
   }
 }

@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "deno:copy": "cp src/* deno/",
-    "deno:extention": "gsed -E 's/(import|export) (.+) from \"(.+)\"/\\1 \\2 from \"\\3.ts\"/g' -i deno/*.ts",
+    "deno:extention": "gsed -E 's/from \"(.+)\"/from \"\\1.ts\"/g' -i deno/*.ts",
     "deno:ts-nocheck": "for tsfile in $(ls deno/*.ts); do echo '// @ts-nocheck' | cat - $tsfile > /tmp/out && mv /tmp/out $tsfile; done",
     "deno:build": "yarn deno:copy && yarn deno:extention && yarn deno:ts-nocheck",
     "build": "tsc-both && yarn deno:build",

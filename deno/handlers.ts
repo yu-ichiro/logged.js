@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { Formatter, Handler, LogRecord } from "./types.ts";
-import { DefaultFormatter } from "./formatter.ts";
+import { SimpleFormatter } from "./formatter.ts";
 import { DEFAULT_LEVELS } from "./constants.ts";
+import { FormatterRegistry, HandlerRegistry } from "./registry.ts";
 
 export class ConsoleHandler implements Handler {
   level: number;
@@ -11,9 +12,12 @@ export class ConsoleHandler implements Handler {
     level: number = DEFAULT_LEVELS.INFO,
     fmt?: string,
     dateFormat?: string,
+    formatter?: Formatter,
   ) {
     this.level = level;
-    this.formatter = new DefaultFormatter(fmt, dateFormat);
+    this.formatter = formatter ?? (fmt || dateFormat)
+      ? new SimpleFormatter(fmt, dateFormat)
+      : FormatterRegistry.defaultFormatter;
   }
 
   handle(log: LogRecord): void {
@@ -33,3 +37,6 @@ export class ConsoleHandler implements Handler {
     return console.error(str);
   }
 }
+
+HandlerRegistry.addHandler("ConsoleHandler", ConsoleHandler);
+HandlerRegistry.defaultHandler = new ConsoleHandler();
