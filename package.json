@@ -1,6 +1,6 @@
 {
   "name": "logged.js",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "logging library without any dependencies inspired from python builtin logging package",
   "keywords": [
     "logging",
