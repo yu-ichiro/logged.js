@@ -14,9 +14,10 @@ export class ConsoleHandler implements Handler {
     formatter?: Formatter,
   ) {
     this.level = level;
-    this.formatter = formatter ?? (fmt || dateFormat)
-      ? new SimpleFormatter(fmt, dateFormat)
-      : FormatterRegistry.defaultFormatter;
+    this.formatter = formatter ??
+      ((fmt || dateFormat)
+        ? new SimpleFormatter(fmt, dateFormat)
+        : FormatterRegistry.defaultFormatter);
   }
 
   handle(log: LogRecord): void {
